@@ -1,0 +1,36 @@
+name: Build PDF Toolbox
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    
+    steps:
+    - uses: actions/checkout@v2
+    
+    - name: Set up Python
+      uses: actions/setup-python@v2
+      with:
+        python-version: '3.13'
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install pyinstaller
+        pip install PyQt5
+        pip install PyPDF2
+    
+    - name: Build with PyInstaller
+      run: |
+        pyinstaller --onefile --windowed pdf/pdf_merger.py
+    
+    - name: Upload artifact
+      uses: actions/upload-artifact@v2
+      with:
+        name: PDFToolbox-Windows
+        path: dist/pdf_merger.exe 

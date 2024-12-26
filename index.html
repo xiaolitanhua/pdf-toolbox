@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI 智能成片</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            background-color: #1a1a1a;
+            color: #fff;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+            height: 100vh;
+            margin: 0;
+            padding-top: 0px;
+        }
+        .status-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            width: 100%;
+            padding: 10px 20px;
+            background-color: #000;
+            position: fixed;
+            top: 0;
+            z-index: 100;
+        }
+        .status-bar .left {
+            display: flex;
+            align-items: center;
+        }
+        .status-bar .left .back-button {
+            font-size: 20px;
+            margin-right: 10px;
+            cursor: pointer;
+            color: #fff;
+        }
+        .status-bar .right {
+            font-size: 14px;
+            color: #fff;
+        }
+        .container {
+            width: 80%;
+            max-width: 400px;
+            margin-top: 60px;
+        }
+        h1 {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .input-group {
+            margin-bottom: 20px;
+            display: flex;
+            flex-direction: column;
+        }
+        .input-group label {
+            margin-bottom: 5px;
+        }
+        .input-group input {
+            padding: 10px;
+            border: 1px solid #444;
+            background-color: #333;
+            color: #fff;
+            border-radius: 5px;
+            position: relative;
+            padding-right: 30px;
+        }
+        .input-group input::after {
+            content: '>';
+            position: absolute;
+            right: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #888;
+        }
+        button {
+            padding: 15px 20px;
+            background-color: #555;
+            color: #fff;
+            border: none;
+            border-radius: 20px;
+            cursor: pointer;
+            width: 100%;
+            margin-top: 20px;
+        }
+        button:hover {
+            background-color: #777;
+        }
+        .more {
+            text-align: right;
+            margin-top: 10px;
+            color: #888;
+        }
+        .back-button {
+            font-size: 24px;
+            transform: rotate(180deg);
+            display: inline-block;
+        }
+        .status-bar .right span {
+            margin-left: 5px;
+        }
+        .status-bar .right span:nth-child(2)::before {
+            content: '📶';
+            font-size: 16px;
+        }
+        .status-bar .right span:nth-child(3)::before {
+            content: '🔋';
+            font-size: 16px;
+        }
+        .input-group input {
+            background-color: #444;
+        }
+    </style>
+</head>
+<body>
+    <div class="status-bar">
+        <div class="left">
+            <span class="back-button"><</span>
+        </div>
+        <div class="right">
+            <span>!!!</span>
+            <span></span>
+            <span>97</span>
+        </div>
+    </div>
+    <div class="container">
+        <h1>AI 智能成片</h1>
+        <div class="input-group">
+            <label for="product-name">*产品名称:</label>
+            <input type="text" id="product-name" placeholder="请输入产品名称">
+        </div>
+        <div class="input-group">
+            <label for="product-selling-point">*产品卖点:</label>
+            <input type="text" id="product-selling-point" placeholder="请输入产品卖点">
+        </div>
+        <div class="more">更多</div>
+        <button>AI写文案</button>
+    </div>
+</body>
+</html>
