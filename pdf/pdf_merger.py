@@ -389,6 +389,8 @@ class PDFSplitWidget(QWidget):
     def parse_page_ranges(self, input_text):
         """解析页码输入"""
         try:
+            # 替换中文逗号为英文逗号
+            input_text = input_text.replace('，', ',')
             pages = set()
             parts = input_text.replace(' ', '').split(',')
             
@@ -515,13 +517,27 @@ class DeleteButton(QPushButton):
 class PDFMergerApp(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("PDF工具箱")  # 添加窗口标题
+        self.setWindowTitle("PDF工具箱")
         self.setGeometry(100, 100, 800, 500)
         
-        # 设置应用图标
-        icon_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'icon.ico')
-        if os.path.exists(icon_path):
-            self.setWindowIcon(QIcon(icon_path))
+        # 设置应用图标 - 修改图标路径的处理方式
+        try:
+            # 尝试多个可能的图标路径
+            icon_paths = [
+                os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'icon.ico'),  # 相对于脚本的上级目录
+                'icon.ico',  # 当前目录
+                os.path.join(os._MEIPASS, 'icon.ico') if hasattr(sys, '_MEIPASS') else None  # PyInstaller 打包后的路径
+            ]
+            
+            for icon_path in icon_paths:
+                if icon_path and os.path.exists(icon_path):
+                    self.setWindowIcon(QIcon(icon_path))
+                    app = QApplication.instance()
+                    if app:
+                        app.setWindowIcon(QIcon(icon_path))
+                    break
+        except Exception as e:
+            print(f"设置图标时出错: {e}")
         
         self.setStyleSheet("""
             QMainWindow {

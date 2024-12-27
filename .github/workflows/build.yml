@@ -27,7 +27,7 @@ jobs:
     
     - name: Build with PyInstaller
       run: |
-        pyinstaller --onefile --windowed pdf/pdf_merger.py --name PDFToolbox
+        pyinstaller --onefile --windowed --icon=icon.ico --add-data "icon.ico;." pdf/pdf_merger.py --name PDFToolbox
 
     - name: Upload artifact
       uses: actions/upload-artifact@v4
