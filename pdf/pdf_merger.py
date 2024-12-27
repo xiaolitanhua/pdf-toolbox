@@ -2,9 +2,9 @@ import sys
 import os
 from PyQt5.QtWidgets import (QApplication, QMainWindow, QPushButton, QFileDialog, 
                            QVBoxLayout, QHBoxLayout, QWidget, QListWidget, QProgressBar, 
-                           QLabel, QStackedWidget, QSpinBox, QFrame, QListWidgetItem, QSizePolicy)
+                           QLabel, QStackedWidget, QSpinBox, QFrame, QListWidgetItem, QSizePolicy, QLineEdit)
 from PyQt5.QtCore import Qt, QTimer, QPropertyAnimation
-from PyQt5.QtGui import QPalette, QFont
+from PyQt5.QtGui import QPalette, QFont, QIcon
 from PyPDF2 import PdfReader, PdfWriter
 from PyQt5.QtSvg import QSvgWidget
 from PyQt5.QtCore import QSize
@@ -58,7 +58,8 @@ class ActionButton(QPushButton):
                 background-color: #2B6DD8;
             }
             QPushButton:disabled {
-                background-color: #CCCCCC;
+                background-color: rgba(75, 139, 244, 0.5);  /* 50%透明度 */
+                color: rgba(255, 255, 255, 0.5);  /* 50%透明度 */
             }
         """)
 
@@ -122,7 +123,7 @@ class DragDropListWidget(QListWidget):
         self.updateEmptyState()
         
     def updateEmptyState(self):
-        # 根据列表项数量显示或��藏提示
+        # 根据列表项数量显示或隐藏提示
         self.empty_label.setVisible(self.count() == 0)
 
     def dragEnterEvent(self, event):
@@ -243,51 +244,58 @@ class PDFSplitWidget(QWidget):
         """)
         layout.addWidget(self.label)
         
-        # 页面范围设置
+        # 修改页面范围设置
         range_widget = QWidget()
         range_layout = QHBoxLayout(range_widget)
         range_layout.setContentsMargins(0, 0, 0, 0)
+        range_layout.setSpacing(4)  # 设置组件间距
         
-        self.range_label = QLabel("提取的页面范围：")
+        self.range_label = QLabel("输入需要提取的页码：")
         self.range_label.setStyleSheet("color: #333333; font-size: 15px;")
         
-        self.start_spin = QSpinBox()
-        self.start_spin.setMinimum(1)
-        self.start_spin.setEnabled(False)
-        self.start_spin.setStyleSheet("""
-            QSpinBox {
+        # 使用输入框替代数字选择器
+        self.page_input = QLineEdit()
+        self.page_input.setEnabled(False)
+        self.page_input.setStyleSheet("""
+            QLineEdit {
                 color: #333333;
                 background-color: white;
                 border: 1px solid #E0E0E0;
                 border-radius: 4px;
-                padding: 4px;
-                min-width: 80px;
+                padding: 4px 8px;
                 font-size: 15px;
+                min-width: 120px;
+            }
+            QLineEdit:disabled {
+                background-color: #F5F5F5;
+                color: #999999;
             }
         """)
         
-        self.to_label = QLabel("至")
-        self.to_label.setStyleSheet("color: #333333; padding: 0 12px; font-size: 15px;")
-        
-        self.end_spin = QSpinBox()
-        self.end_spin.setMinimum(1)
-        self.end_spin.setEnabled(False)
-        self.end_spin.setStyleSheet("""
-            QSpinBox {
-                color: #333333;
-                background-color: white;
-                border: 1px solid #E0E0E0;
-                border-radius: 4px;
-                padding: 4px;
-                min-width: 80px;
+        # 添加最大页码显示
+        self.max_page_label = QLabel("/--")
+        self.max_page_label.setStyleSheet("""
+            QLabel {
+                color: #666666;
                 font-size: 15px;
+                padding: 0 4px;
+            }
+        """)
+        
+        # 添加范例说明
+        self.example_label = QLabel("（示例：1,3,5-9）")
+        self.example_label.setStyleSheet("""
+            QLabel {
+                color: #999999;
+                font-size: 13px;
+                padding-left: 8px;
             }
         """)
         
         range_layout.addWidget(self.range_label)
-        range_layout.addWidget(self.start_spin)
-        range_layout.addWidget(self.to_label)
-        range_layout.addWidget(self.end_spin)
+        range_layout.addWidget(self.page_input)
+        range_layout.addWidget(self.max_page_label)
+        range_layout.addWidget(self.example_label)
         range_layout.addStretch()
         
         layout.addWidget(range_widget)
@@ -328,8 +336,8 @@ class PDFSplitWidget(QWidget):
             QLabel {
                 color: #333333;
                 font-size: 13px;
-                border: none;
-                background: transparent;
+                border: none;  /* 移除边框 */
+                background: transparent;  /* 透明背景 */
             }
         """)
         label.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
@@ -345,12 +353,12 @@ class PDFSplitWidget(QWidget):
         # 设置整个项目的样式
         widget.setStyleSheet("""
             QWidget {
-                background: transparent;
-                border: none;
+                background: transparent;  /* 透明背景 */
+                border: none;  /* 移除边框 */
             }
         """)
         
-        widget.setFixedHeight(36)
+        widget.setFixedHeight(36)  # 固定每个项目的高度
         item.setSizeHint(widget.sizeHint())
         
         self.file_list.addItem(item)
@@ -362,10 +370,9 @@ class PDFSplitWidget(QWidget):
             self.max_pages = len(pdf.pages)
         
         # 更新控件
-        self.start_spin.setEnabled(True)
-        self.end_spin.setEnabled(True)
-        self.end_spin.setValue(self.max_pages)
-        self.end_spin.setMaximum(self.max_pages)
+        self.page_input.setEnabled(True)
+        self.page_input.clear()
+        self.max_page_label.setText(f"/{self.max_pages}页")  # 更新最大页码显示，添加“页”
         self.split_button.setEnabled(True)
         
         self.main_window.show_toast(f"PDF文件加载，共 {self.max_pages} 页")
@@ -374,39 +381,70 @@ class PDFSplitWidget(QWidget):
         self.file_list.clear()
         self.pdf_file = None
         self.max_pages = 0
-        self.start_spin.setEnabled(False)
-        self.end_spin.setEnabled(False)
+        self.page_input.setEnabled(False)
+        self.page_input.clear()
+        self.max_page_label.setText("/--页")  # 重置最大页码显示，添加“页”
         self.split_button.setEnabled(False)
+
+    def parse_page_ranges(self, input_text):
+        """解析页码输入"""
+        try:
+            pages = set()
+            parts = input_text.replace(' ', '').split(',')
+            
+            for part in parts:
+                if '-' in part:
+                    start, end = map(int, part.split('-'))
+                    if start < 1 or end > self.max_pages or start > end:
+                        raise ValueError
+                    pages.update(range(start, end + 1))
+                else:
+                    page = int(part)
+                    if page < 1 or page > self.max_pages:
+                        raise ValueError
+                    pages.add(page)
+            
+            return sorted(list(pages))
+        except ValueError:
+            return None
 
     def split_pdf(self):
         if not self.pdf_file:
             return
         
-        start_page = self.start_spin.value()
-        end_page = self.end_spin.value()
+        input_text = self.page_input.text().strip()
+        if not input_text:
+            self.main_window.show_toast("请输入需要提取的页码")
+            return
         
-        if start_page > end_page:
-            self.main_window.show_toast("起始页不能大于结束页")
+        pages = self.parse_page_ranges(input_text)
+        if pages is None:
+            self.main_window.show_toast("页码格式错误或超出范围")
             return
         
         # 创建输出文件名
         base_name = os.path.splitext(self.pdf_file)[0]
-        output_file = f"{base_name}_提取_{start_page}-{end_page}.pdf"
+        page_desc = f"{pages[0]}-{pages[-1]}" if len(pages) > 1 else str(pages[0])
+        output_file = f"{base_name}_提取_{page_desc}.pdf"
         
-        # 提取PDF
-        pdf_writer = PdfWriter()
-        with open(self.pdf_file, 'rb') as file:
-            pdf_reader = PdfReader(file)
+        try:
+            # 提取PDF
+            pdf_writer = PdfWriter()
+            with open(self.pdf_file, 'rb') as file:
+                pdf_reader = PdfReader(file)
+                
+                # 添加选定的页面
+                for page_num in pages:
+                    pdf_writer.add_page(pdf_reader.pages[page_num - 1])
             
-            # 添加选定范围的页面
-            for page_num in range(start_page - 1, end_page):
-                pdf_writer.add_page(pdf_reader.pages[page_num])
-        
-        # 保存提取后的PDF
-        with open(output_file, 'wb') as output:
-            pdf_writer.write(output)
-        
-        self.main_window.show_toast("PDF提取完成，文件已保存至原文件夹")
+            # 保存提取后的PDF
+            with open(output_file, 'wb') as output:
+                pdf_writer.write(output)
+            
+            self.main_window.show_toast("PDF提取完成，文件已保存至原文件夹")
+            
+        except Exception as e:
+            self.main_window.show_toast("提取PDF时出错")
 
 class AddFileButton(QPushButton):
     def __init__(self, parent=None):
@@ -477,8 +515,14 @@ class DeleteButton(QPushButton):
 class PDFMergerApp(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("")  # 移除窗口标题
+        self.setWindowTitle("PDF工具箱")  # 添加窗口标题
         self.setGeometry(100, 100, 800, 500)
+        
+        # 设置应用图标
+        icon_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'icon.ico')
+        if os.path.exists(icon_path):
+            self.setWindowIcon(QIcon(icon_path))
+        
         self.setStyleSheet("""
             QMainWindow {
                 background-color: white;
