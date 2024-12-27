@@ -2,7 +2,7 @@ import sys
 import os
 from PyQt5.QtWidgets import (QApplication, QMainWindow, QPushButton, QFileDialog, 
                            QVBoxLayout, QHBoxLayout, QWidget, QListWidget, QProgressBar, 
-                           QLabel, QStackedWidget, QSpinBox, QFrame, QListWidgetItem)
+                           QLabel, QStackedWidget, QSpinBox, QFrame, QListWidgetItem, QSizePolicy)
 from PyQt5.QtCore import Qt, QTimer, QPropertyAnimation
 from PyQt5.QtGui import QPalette, QFont
 from PyPDF2 import PdfReader, PdfWriter
@@ -41,7 +41,7 @@ class ActionButton(QPushButton):
     def __init__(self, text, parent=None):
         super().__init__(text, parent)
         self.setMinimumHeight(36)
-        self.setFixedWidth(200)  # 设置固定宽度
+        self.setFixedWidth(200)  # 设固定宽度
         self.setStyleSheet("""
             QPushButton {
                 background-color: #4B8BF4;
@@ -66,8 +66,24 @@ class DragDropListWidget(QListWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setAcceptDrops(True)
-        self.setDragDropMode(QListWidget.InternalMove)  # 允许内部项目拖动
+        self.setDragDropMode(QListWidget.InternalMove)
         self.parent_widget = parent
+        
+        # 添加空状态提示标签
+        self.empty_label = QLabel("将文件拖拽到此处", self)
+        self.empty_label.setStyleSheet("""
+            QLabel {
+                color: #999999;
+                font-size: 13px;
+                background: transparent;
+            }
+        """)
+        self.empty_label.setAlignment(Qt.AlignCenter)
+        self.empty_label.hide()
+        # 设置提示标签层级
+        self.empty_label.setAttribute(Qt.WA_TransparentForMouseEvents)
+        self.empty_label.lower()  # 将提示标签放到底层
+        
         self.default_style = """
             QListWidget {
                 border: 1px solid #F7F7F7;
@@ -80,12 +96,12 @@ class DragDropListWidget(QListWidget):
             QListWidget::item {
                 color: #333333;
                 background-color: white;
-                padding: 12px;
+                padding: 0px;
                 border-bottom: 1px solid #F0F0F0;
             }
             QListWidget::item:selected {
-                background-color: #F0F7FF;
-                color: #2B6DE8;
+                background-color: #EEF7FF;
+                color: #333333;
             }
             QListWidget::item:hover {
                 background-color: #F5F5F5;
@@ -95,10 +111,24 @@ class DragDropListWidget(QListWidget):
             }
         """
         self.setStyleSheet(self.default_style)
+        
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        # 调整提示标签位置
+        self.empty_label.setGeometry(0, 0, self.width(), self.height())
+        
+    def showEvent(self, event):
+        super().showEvent(event)
+        self.updateEmptyState()
+        
+    def updateEmptyState(self):
+        # 根据列表项数量显示或��藏提示
+        self.empty_label.setVisible(self.count() == 0)
 
     def dragEnterEvent(self, event):
         if event.mimeData().hasUrls():
             event.accept()
+            # 不再在这里隐藏提示标签
             self.setStyleSheet("""
                 QListWidget {
                     border: 2px dashed #2B6DE8;
@@ -111,19 +141,19 @@ class DragDropListWidget(QListWidget):
                 QListWidget::item {
                     color: #333333;
                     background-color: white;
-                    padding: 12px;
+                    padding: 0px;
                     border-bottom: 1px solid #F0F0F0;
                 }
                 QListWidget::item:selected {
-                    background-color: #F0F7FF;
-                    color: #2B6DE8;
+                    background-color: #EEF7FF;
+                    color: #333333;
                 }
                 QListWidget::item:hover {
                     background-color: #F5F5F5;
                 }
             """)
         else:
-            super().dragEnterEvent(event)  # 处理内部拖拽
+            super().dragEnterEvent(event)
 
     def dragMoveEvent(self, event):
         if event.mimeData().hasUrls():
@@ -133,6 +163,7 @@ class DragDropListWidget(QListWidget):
 
     def dragLeaveEvent(self, event):
         self.setStyleSheet(self.default_style)
+        self.updateEmptyState()  # 恢复提示（如果列表为空）
         event.accept()
 
     def dropEvent(self, event):
@@ -144,8 +175,9 @@ class DragDropListWidget(QListWidget):
                 self.parent_widget.handle_dropped_files(event.mimeData().urls())
             elif hasattr(self.parent_widget, 'handle_dropped_files'):
                 self.parent_widget.handle_dropped_files(event.mimeData().urls())
+            self.updateEmptyState()  # 根据列表状态显示或隐藏提示
         else:
-            super().dropEvent(event)  # 处理内部拖拽
+            super().dropEvent(event)
 
 class PDFSplitWidget(QWidget):
     def __init__(self, parent=None):
@@ -202,7 +234,7 @@ class PDFSplitWidget(QWidget):
         layout.addWidget(list_container)
         
         # 提示语放在列表下方
-        self.label = QLabel("选择要拆分的PDF文件（仅支持单个文件）：")
+        self.label = QLabel("添加要提取的PDF文件，提取后的PDF文件会保存至原文件夹")
         self.label.setStyleSheet("""
             QLabel {
                 color: #666666;
@@ -216,7 +248,7 @@ class PDFSplitWidget(QWidget):
         range_layout = QHBoxLayout(range_widget)
         range_layout.setContentsMargins(0, 0, 0, 0)
         
-        self.range_label = QLabel("拆分页面范围：")
+        self.range_label = QLabel("提取的页面范围：")
         self.range_label.setStyleSheet("color: #333333; font-size: 15px;")
         
         self.start_spin = QSpinBox()
@@ -267,7 +299,7 @@ class PDFSplitWidget(QWidget):
         
         # 按钮靠右放置
         bottom_layout.addStretch()
-        self.split_button = ActionButton("开始拆分")
+        self.split_button = ActionButton("提取PDF")
         self.split_button.clicked.connect(self.split_pdf)
         self.split_button.setEnabled(False)
         bottom_layout.addWidget(self.split_button)
@@ -283,7 +315,46 @@ class PDFSplitWidget(QWidget):
     def load_pdf(self, file_path):
         self.pdf_file = file_path
         self.file_list.clear()
-        self.file_list.addItem(os.path.basename(file_path))
+        
+        # 添加带删除按钮的文件项
+        item = QListWidgetItem()
+        widget = QWidget()
+        layout = QHBoxLayout(widget)
+        layout.setContentsMargins(12, 4, 12, 4)
+        
+        # 文件名标签
+        label = QLabel(os.path.basename(file_path))
+        label.setStyleSheet("""
+            QLabel {
+                color: #333333;
+                font-size: 13px;
+                border: none;
+                background: transparent;
+            }
+        """)
+        label.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
+        
+        # 删除按钮
+        delete_btn = DeleteButton()
+        delete_btn.setFixedWidth(40)
+        delete_btn.clicked.connect(lambda: self.remove_file())
+        
+        layout.addWidget(label)
+        layout.addWidget(delete_btn)
+        
+        # 设置整个项目的样式
+        widget.setStyleSheet("""
+            QWidget {
+                background: transparent;
+                border: none;
+            }
+        """)
+        
+        widget.setFixedHeight(36)
+        item.setSizeHint(widget.sizeHint())
+        
+        self.file_list.addItem(item)
+        self.file_list.setItemWidget(item, widget)
         
         # 读取PDF页数
         with open(file_path, 'rb') as file:
@@ -299,6 +370,14 @@ class PDFSplitWidget(QWidget):
         
         self.main_window.show_toast(f"PDF文件加载，共 {self.max_pages} 页")
 
+    def remove_file(self):
+        self.file_list.clear()
+        self.pdf_file = None
+        self.max_pages = 0
+        self.start_spin.setEnabled(False)
+        self.end_spin.setEnabled(False)
+        self.split_button.setEnabled(False)
+
     def split_pdf(self):
         if not self.pdf_file:
             return
@@ -312,9 +391,9 @@ class PDFSplitWidget(QWidget):
         
         # 创建输出文件名
         base_name = os.path.splitext(self.pdf_file)[0]
-        output_file = f"{base_name}_拆分_{start_page}-{end_page}.pdf"
+        output_file = f"{base_name}_提取_{start_page}-{end_page}.pdf"
         
-        # 拆分PDF
+        # 提取PDF
         pdf_writer = PdfWriter()
         with open(self.pdf_file, 'rb') as file:
             pdf_reader = PdfReader(file)
@@ -323,11 +402,11 @@ class PDFSplitWidget(QWidget):
             for page_num in range(start_page - 1, end_page):
                 pdf_writer.add_page(pdf_reader.pages[page_num])
         
-        # 保存拆分后的PDF
+        # 保存提取后的PDF
         with open(output_file, 'wb') as output:
             pdf_writer.write(output)
         
-        self.main_window.show_toast("PDF拆分完成")
+        self.main_window.show_toast("PDF提取完成，文件已保存至原文件夹")
 
 class AddFileButton(QPushButton):
     def __init__(self, parent=None):
@@ -349,20 +428,51 @@ class AddFileButton(QPushButton):
 
 class DeleteButton(QPushButton):
     def __init__(self, parent=None):
-        super().__init__("×", parent)  # 使用 × 符号代替SVG
-        self.setFixedSize(24, 24)
-        self.setCursor(Qt.PointingHandCursor)
+        super().__init__("删除", parent)
         self.setStyleSheet("""
             QPushButton {
-                border: none;
                 background-color: transparent;
-                color: #999999;
-                font-size: 16px;
+                color: #666666;
+                border: none;
+                font-size: 13px;
+                padding: 4px 8px;
+                text-align: center;
             }
             QPushButton:hover {
-                color: #666666;
+                color: #2B6DE8;
             }
         """)
+        self.setCursor(Qt.PointingHandCursor)
+
+    def setSelected(self, selected):
+        if selected:
+            self.setStyleSheet("""
+                QPushButton {
+                    background-color: #EEF7FF;
+                    color: #666666;
+                    border: none;
+                    font-size: 13px;
+                    padding: 4px 8px;
+                    text-align: center;
+                }
+                QPushButton:hover {
+                    color: #2B6DE8;
+                }
+            """)
+        else:
+            self.setStyleSheet("""
+                QPushButton {
+                    background-color: transparent;
+                    color: #666666;
+                    border: none;
+                    font-size: 13px;
+                    padding: 4px 8px;
+                    text-align: center;
+                }
+                QPushButton:hover {
+                    color: #2B6DE8;
+                }
+            """)
 
 class PDFMergerApp(QMainWindow):
     def __init__(self):
@@ -422,7 +532,7 @@ class PDFMergerApp(QMainWindow):
         self.merge_nav.setChecked(True)
         self.merge_nav.clicked.connect(lambda: self.switch_page(0))
         
-        self.split_nav = NavButton("PDF拆分")
+        self.split_nav = NavButton("PDF提取")
         self.split_nav.clicked.connect(lambda: self.switch_page(1))
         
         nav_layout.addWidget(self.merge_nav)
@@ -465,7 +575,7 @@ class PDFMergerApp(QMainWindow):
         merge_layout.addWidget(list_container)
         
         # 提示语放在列表下方
-        self.merge_label = QLabel("选择PDF文件进行合并（支持拖拽调整顺序）：")
+        self.merge_label = QLabel("添加要合并的PDF文件，可拖拽调整文件合并顺序")
         self.merge_label.setStyleSheet("""
             QLabel {
                 color: #666666;
@@ -531,21 +641,43 @@ class PDFMergerApp(QMainWindow):
             self.merge_nav.setChecked(False)
             self.split_nav.setChecked(True)
 
-    def add_file_item(self, file_path):
+    def add_file_with_delete(self, file_path):
         item = QListWidgetItem()
         widget = QWidget()
         layout = QHBoxLayout(widget)
-        layout.setContentsMargins(4, 0, 4, 0)
+        layout.setContentsMargins(12, 4, 12, 4)
         
+        # 文件名标签
         label = QLabel(os.path.basename(file_path))
+        label.setStyleSheet("""
+            QLabel {
+                color: #333333;
+                font-size: 13px;
+                border: none;  /* 移除边框 */
+                background: transparent;  /* 透明背景 */
+            }
+        """)
+        label.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
+        
+        # 删除按钮
         delete_btn = DeleteButton()
+        delete_btn.setFixedWidth(40)
         delete_btn.clicked.connect(lambda: self.remove_file(item, file_path))
         
         layout.addWidget(label)
-        layout.addStretch()
         layout.addWidget(delete_btn)
         
+        # 设置整个项目的样式
+        widget.setStyleSheet("""
+            QWidget {
+                background: transparent;  /* 透明背景 */
+                border: none;  /* 移除边框 */
+            }
+        """)
+        
+        widget.setFixedHeight(36)
         item.setSizeHint(widget.sizeHint())
+        
         self.file_list.addItem(item)
         self.file_list.setItemWidget(item, widget)
 
@@ -554,6 +686,7 @@ class PDFMergerApp(QMainWindow):
         self.file_list.takeItem(row)
         if file_path in self.pdf_files:
             self.pdf_files.remove(file_path)
+        self.file_list.updateEmptyState()  # 更新空状态
 
     def handle_dropped_files(self, urls):
         for url in urls:
@@ -562,7 +695,7 @@ class PDFMergerApp(QMainWindow):
                 if os.path.isfile(file_path) and file_path.lower().endswith('.pdf'):
                     if file_path not in self.pdf_files:
                         self.pdf_files.append(file_path)
-                        self.file_list.addItem(os.path.basename(file_path))  # 恢复原来的添加方式
+                        self.add_file_with_delete(file_path)
                 elif os.path.isdir(file_path):
                     for root, dirs, files in os.walk(file_path):
                         for file in files:
@@ -570,11 +703,9 @@ class PDFMergerApp(QMainWindow):
                                 full_path = os.path.join(root, file)
                                 if full_path not in self.pdf_files:
                                     self.pdf_files.append(full_path)
-                                    self.file_list.addItem(os.path.basename(full_path))  # 恢复原来的添加方式
-        if self.pdf_files:
-            self.show_toast("文件已添加")
+                                    self.add_file_with_delete(full_path)
 
-    def show_toast(self, message, duration=3000, fade_duration=500):
+    def show_toast(self, message, duration=3000, fade_duration=200):
         self.toast_label.setText(message)
         self.toast_label.adjustSize()
         self.toast_label.move(self.geometry().center() - self.toast_label.rect().center())
@@ -602,7 +733,7 @@ class PDFMergerApp(QMainWindow):
             for file in files:
                 if file not in self.pdf_files:
                     self.pdf_files.append(file)
-                    self.file_list.addItem(os.path.basename(file))  # 恢复原来的添加方式
+                    self.add_file_with_delete(file)  # 使用新的添加方法
             self.show_toast("文件已选择")
 
     def merge_pdfs(self):
@@ -617,23 +748,34 @@ class PDFMergerApp(QMainWindow):
         # Merge the PDF files in the order they appear in the QListWidget
         pdf_writer = PdfWriter()
         
+        # 获取每个列表项的实际文件路径
         for index in range(self.file_list.count()):
-            file_name = self.file_list.item(index).text()
+            item = self.file_list.item(index)
+            widget = self.file_list.itemWidget(item)
+            file_name = widget.layout().itemAt(0).widget().text()  # 获取文件名标签的文本
             file_path = next((f for f in self.pdf_files if os.path.basename(f) == file_name), None)
+            
             if file_path:
-                pdf_reader = PdfReader(file_path)
-                for page in range(len(pdf_reader.pages)):
-                    pdf_writer.add_page(pdf_reader.pages[page])
+                try:
+                    pdf_reader = PdfReader(file_path)
+                    for page in pdf_reader.pages:
+                        pdf_writer.add_page(page)
+                except Exception as e:
+                    self.show_toast(f"处理文件 {file_name} 时出错")
+                    return
         
-        # Write the merged PDF to the output file
-        with open(output_file, 'wb') as out:
-            pdf_writer.write(out)
-        
-        self.show_toast("合并完成！")
-        
-        # Clear the list and internal storage
-        self.file_list.clear()
-        self.pdf_files.clear()
+        try:
+            # Write the merged PDF to the output file
+            with open(output_file, 'wb') as out:
+                pdf_writer.write(out)
+            
+            self.show_toast("合并完成！文件保存至目标文件夹")
+            
+            # Clear the list and internal storage
+            self.file_list.clear()
+            self.pdf_files.clear()
+        except Exception as e:
+            self.show_toast("保存文件时出错")
 
 def main():
     print("应用程序已启动")
