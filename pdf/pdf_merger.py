@@ -421,7 +421,7 @@ class PDFSplitWidget(QWidget):
         
         pages = self.parse_page_ranges(input_text)
         if pages is None:
-            self.main_window.show_toast("页码格式错误或超出范围")
+            self.main_window.show_toast("页码格式错误或超���范围")
             return
         
         # 创建输出文件名
@@ -520,21 +520,21 @@ class PDFMergerApp(QMainWindow):
         self.setWindowTitle("PDF工具箱")
         self.setGeometry(100, 100, 800, 500)
         
-        # 设置应用图标 - 修改图标路径的处理方式
+        # 设置应用图标
         try:
             # 尝试多个可能的图标路径
             icon_paths = [
-                os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'icon.ico'),  # 相对于脚本的上级目录
-                'icon.ico',  # 当前目录
-                os.path.join(os._MEIPASS, 'icon.ico') if hasattr(sys, '_MEIPASS') else None  # PyInstaller 打包后的路径
+                os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'icon.ico'),
+                'icon.ico',
+                os.path.join(os._MEIPASS, 'icon.ico') if hasattr(sys, '_MEIPASS') else None
             ]
             
             for icon_path in icon_paths:
                 if icon_path and os.path.exists(icon_path):
-                    self.setWindowIcon(QIcon(icon_path))
-                    app = QApplication.instance()
-                    if app:
-                        app.setWindowIcon(QIcon(icon_path))
+                    icon = QIcon(icon_path)
+                    self.setWindowIcon(icon)
+                    # 确保应用程序级别的图标也被设置
+                    QApplication.setWindowIcon(icon)
                     break
         except Exception as e:
             print(f"设置图标时出错: {e}")
