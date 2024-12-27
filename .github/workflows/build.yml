@@ -9,14 +9,14 @@ on:
 jobs:
   build-windows:
     runs-on: windows-latest
-    
+
     steps:
     - uses: actions/checkout@v4
     
     - name: Set up Python
       uses: actions/setup-python@v5
       with:
-        python-version: '3.11'    # 改用稳定版本 3.11
+        python-version: '3.9'
     
     - name: Install dependencies
       run: |
@@ -27,10 +27,10 @@ jobs:
     
     - name: Build with PyInstaller
       run: |
-        pyinstaller --onefile --windowed pdf/pdf_merger.py
-    
+        pyinstaller --onefile --windowed pdf/pdf_merger.py --name PDFToolbox
+
     - name: Upload artifact
       uses: actions/upload-artifact@v4
       with:
         name: PDFToolbox-Windows
-        path: dist/pdf_merger.exe
+        path: dist/PDFToolbox.exe
