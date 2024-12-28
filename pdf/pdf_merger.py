@@ -2,7 +2,7 @@ import sys
 import os
 from PyQt5.QtWidgets import (QApplication, QMainWindow, QPushButton, QFileDialog, 
                            QVBoxLayout, QHBoxLayout, QWidget, QListWidget, QProgressBar, 
-                           QLabel, QStackedWidget, QSpinBox, QFrame, QListWidgetItem, QSizePolicy, QLineEdit)
+                           QLabel, QStackedWidget, QSpinBox, QFrame, QListWidgetItem, QSizePolicy, QLineEdit, QComboBox, QRadioButton)
 from PyQt5.QtCore import Qt, QTimer, QPropertyAnimation
 from PyQt5.QtGui import QPalette, QFont, QIcon
 from PyPDF2 import PdfReader, PdfWriter
@@ -224,7 +224,7 @@ class PDFSplitWidget(QWidget):
         
         # 文件列表
         self.file_list = DragDropListWidget(self)
-        self.file_list.setMinimumHeight(200)
+        self.file_list.setFixedHeight(300)  # 使用固定高度
         
         # 添加文件按钮
         self.add_file_button = AddFileButton()
@@ -579,8 +579,12 @@ class PDFMergerApp(QMainWindow):
         self.split_nav = NavButton("PDF提取")
         self.split_nav.clicked.connect(lambda: self.switch_page(1))
         
+        self.image_nav = NavButton("图片转PDF")  # 添加新的导航按钮
+        self.image_nav.clicked.connect(lambda: self.switch_page(2))
+        
         nav_layout.addWidget(self.merge_nav)
         nav_layout.addWidget(self.split_nav)
+        nav_layout.addWidget(self.image_nav)  # 添加到导航栏
         nav_layout.addStretch()
         nav_widget.setLayout(nav_layout)
         
@@ -608,7 +612,7 @@ class PDFMergerApp(QMainWindow):
         
         # 文件列表
         self.file_list = DragDropListWidget(self)
-        self.file_list.setMinimumHeight(300)
+        self.file_list.setFixedHeight(300)  # 使用固定高度
         
         # 添加文件按钮
         self.add_file_button = AddFileButton()
@@ -646,9 +650,13 @@ class PDFMergerApp(QMainWindow):
         # 创建PDF拆分页面
         self.split_page = PDFSplitWidget(self)
         
+        # 创建图片转PDF页面
+        self.image_page = ImageToPDFWidget(self)
+        
         # 将页面添加到堆叠窗口
         self.stack.addWidget(merge_page)
         self.stack.addWidget(self.split_page)
+        self.stack.addWidget(self.image_page)  # 添加新页面
         
         # 组装主布局
         main_layout.addWidget(nav_widget)
@@ -681,9 +689,15 @@ class PDFMergerApp(QMainWindow):
         if index == 0:
             self.merge_nav.setChecked(True)
             self.split_nav.setChecked(False)
-        else:
+            self.image_nav.setChecked(False)
+        elif index == 1:
             self.merge_nav.setChecked(False)
             self.split_nav.setChecked(True)
+            self.image_nav.setChecked(False)
+        else:
+            self.merge_nav.setChecked(False)
+            self.split_nav.setChecked(False)
+            self.image_nav.setChecked(True)
 
     def add_file_with_delete(self, file_path):
         item = QListWidgetItem()
@@ -820,6 +834,273 @@ class PDFMergerApp(QMainWindow):
             self.pdf_files.clear()
         except Exception as e:
             self.show_toast("保存文件时出错")
+
+class ImageToPDFWidget(QWidget):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.main_window = parent
+        self.setup_ui()
+        self.image_files = []  # 存储图片文件路径
+
+    def setup_ui(self):
+        layout = QVBoxLayout()
+        layout.setContentsMargins(12, 48, 20, 20)
+        layout.setSpacing(12)
+        
+        # 创建列表容器
+        list_container = QWidget()
+        list_container.setStyleSheet("""
+            QWidget {
+                background-color: white;
+                border: 1px solid #F3F4F7;
+                border-radius: 4px;
+            }
+        """)
+        list_layout = QVBoxLayout(list_container)
+        list_layout.setContentsMargins(4, 4, 4, 4)
+        
+        # 文件列表
+        self.file_list = DragDropListWidget(self)
+        self.file_list.setFixedHeight(300)  # 使用固定高度替代最小高度
+        
+        # 添加文件按钮
+        self.add_file_button = AddFileButton()
+        self.add_file_button.clicked.connect(self.select_files)
+        
+        list_layout.addWidget(self.file_list)
+        list_layout.addWidget(self.add_file_button)
+        layout.addWidget(list_container)
+        
+        # 提示语
+        self.label = QLabel("添加要转换的图片文件，支持jpg、png等格式，可拖拽调整顺序")
+        self.label.setStyleSheet("""
+            QLabel {
+                color: #666666;
+                font-size: 13px;
+            }
+        """)
+        layout.addWidget(self.label)
+        
+        # 添加纸张设置
+        paper_container = QWidget()
+        paper_layout = QHBoxLayout(paper_container)
+        paper_layout.setContentsMargins(0, 0, 0, 0)
+        
+        paper_label = QLabel("纸张设置：")
+        paper_label.setStyleSheet("""
+            QLabel {
+                color: #333333;
+                font-size: 15px;
+            }
+        """)
+        
+        self.paper_combo = QComboBox()
+        self.paper_combo.addItems(["原图", "A4纸", "A3纸"])
+        self.paper_combo.setStyleSheet("""
+            QComboBox {
+                color: #333333;
+                background-color: white;
+                border: 1px solid #E0E0E0;
+                border-radius: 4px;
+                padding: 4px 12px;
+                font-size: 15px;
+                min-width: 120px;
+            }
+            QComboBox:hover {
+                border-color: #2B6DE8;
+            }
+            QComboBox::drop-down {
+                width: 20px;
+                border: none;
+                background: transparent;
+            }
+            QComboBox::down-arrow {
+                image: none;  /* 移除默认箭头图片 */
+                border-left: 5px solid transparent;
+                border-right: 5px solid transparent;
+                border-top: 5px solid #666666;
+                margin-right: 8px;
+            }
+            QComboBox QAbstractItemView {
+                border: 1px solid #E0E0E0;
+                border-radius: 4px;
+                background-color: white;
+                selection-background-color: #F0F7FF;
+                selection-color: #2B6DE8;
+            }
+            QComboBox QAbstractItemView::item {
+                height: 32px;
+                padding-left: 12px;
+                color: #333333;
+            }
+            QComboBox QAbstractItemView::item:hover {
+                background-color: #F5F5F5;
+            }
+        """)
+        
+        paper_layout.addWidget(paper_label)
+        paper_layout.addWidget(self.paper_combo)
+        paper_layout.addStretch()
+        
+        layout.addWidget(paper_container)
+        
+        # 底部按钮容器
+        bottom_container = QWidget()
+        bottom_layout = QHBoxLayout(bottom_container)
+        bottom_layout.setContentsMargins(20, 10, 20, 20)
+        
+        # 按钮靠右放置
+        bottom_layout.addStretch()
+        self.convert_button = ActionButton("转换为PDF")
+        self.convert_button.clicked.connect(self.convert_to_pdf)
+        bottom_layout.addWidget(self.convert_button)
+        
+        layout.addWidget(bottom_container)
+        self.setLayout(layout)
+
+    def on_paper_button_clicked(self, clicked_button):
+        # 确保只有一个按钮被选中
+        for btn in self.paper_buttons:
+            if btn != clicked_button:
+                btn.setChecked(False)
+
+    def convert_to_pdf(self):
+        if not self.image_files:
+            self.main_window.show_toast("请先添加图片文件")
+            return
+        
+        output_file, _ = QFileDialog.getSaveFileName(
+            self, 
+            "保存PDF文件", 
+            "", 
+            "PDF文件 (*.pdf)"
+        )
+        if not output_file:
+            return
+            
+        try:
+            import img2pdf
+            ordered_files = self.get_ordered_files()
+            
+            # 获取选中的纸张类型
+            paper_type = self.paper_combo.currentText()
+            
+            # 根据纸张类型设置布局选项
+            if paper_type == "原图":
+                layout_fun = img2pdf.get_layout_fun(None)
+            else:
+                if paper_type == "A4纸":
+                    layout_fun = img2pdf.get_layout_fun((img2pdf.mm_to_pt(210), img2pdf.mm_to_pt(297)))
+                else:  # A3纸
+                    layout_fun = img2pdf.get_layout_fun((img2pdf.mm_to_pt(297), img2pdf.mm_to_pt(420)))
+            
+            with open(output_file, "wb") as f:
+                f.write(img2pdf.convert(
+                    ordered_files,
+                    layout_fun=layout_fun,
+                    rotation=img2pdf.Rotation.auto  # 自动检测并旋转图片
+                ))
+            
+            self.main_window.show_toast("转换完成！文件已保存至目标文件夹")
+            self.clear_files()
+            
+        except Exception as e:
+            self.main_window.show_toast("转换过程中出错，请检查图片文件")
+
+    def get_ordered_files(self):
+        """获取列表中的文件顺序"""
+        ordered_files = []
+        for index in range(self.file_list.count()):
+            item = self.file_list.item(index)
+            widget = self.file_list.itemWidget(item)
+            file_name = widget.layout().itemAt(0).widget().text()
+            file_path = next((f for f in self.image_files if os.path.basename(f) == file_name), None)
+            if file_path:
+                ordered_files.append(file_path)
+        return ordered_files
+
+    def clear_files(self):
+        """清空文件列表"""
+        self.file_list.clear()
+        self.image_files.clear()
+        self.file_list.updateEmptyState()
+
+    def is_valid_image(self, file_path):
+        """检查是否为支持的图片格式"""
+        return file_path.lower().endswith(('.jpg', '.jpeg', '.png', '.bmp'))
+
+    def handle_dropped_files(self, urls):
+        """处理拖拽的文件"""
+        for url in urls:
+            if url.isLocalFile():
+                file_path = url.toLocalFile()
+                if os.path.isfile(file_path):
+                    if self.is_valid_image(file_path):
+                        if file_path not in self.image_files:
+                            self.image_files.append(file_path)
+                            self.add_file_with_delete(file_path)
+                        else:
+                            self.main_window.show_toast("已存在相同的文件")
+                    else:
+                        self.main_window.show_toast("不支持的文件格式")
+
+    def select_files(self):
+        """选择图片文件"""
+        files, _ = QFileDialog.getOpenFileNames(
+            self, 
+            "选择图片文件", 
+            "", 
+            "图片文件 (*.jpg *.jpeg *.png *.bmp)"
+        )
+        if files:
+            for file in files:
+                if file not in self.image_files:
+                    self.image_files.append(file)
+                    self.add_file_with_delete(file)
+                else:
+                    self.main_window.show_toast("已存在相同的文件")
+
+    def add_file_with_delete(self, file_path):
+        """添加文件到列表，包含删除按钮"""
+        item = QListWidgetItem()
+        widget = QWidget()
+        layout = QHBoxLayout(widget)
+        layout.setContentsMargins(12, 4, 12, 4)
+        
+        # 文件名标签
+        label = QLabel(os.path.basename(file_path))
+        label.setStyleSheet("""
+            QLabel {
+                color: #333333;
+                font-size: 13px;
+                border: none;
+                background: transparent;
+            }
+        """)
+        label.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
+        
+        # 删除按钮
+        delete_btn = DeleteButton()
+        delete_btn.setFixedWidth(40)
+        delete_btn.clicked.connect(lambda: self.remove_file(item, file_path))
+        
+        layout.addWidget(label)
+        layout.addWidget(delete_btn)
+        
+        widget.setStyleSheet("background: transparent; border: none;")
+        widget.setFixedHeight(36)
+        item.setSizeHint(widget.sizeHint())
+        
+        self.file_list.addItem(item)
+        self.file_list.setItemWidget(item, widget)
+
+    def remove_file(self, item, file_path):
+        """从列表中移除文件"""
+        row = self.file_list.row(item)
+        self.file_list.takeItem(row)
+        if file_path in self.image_files:
+            self.image_files.remove(file_path)
+        self.file_list.updateEmptyState()
 
 def main():
     print("应用程序已启动")
