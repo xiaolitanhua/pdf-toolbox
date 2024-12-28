@@ -51,13 +51,17 @@ jobs:
           pip install PyQt5
           pip install PyPDF2
           pip install img2pdf
+      - name: Clean build directory
+        run: |
+          rm -rf dist/
+          rm -rf build/
       - name: Build with PyInstaller
         run: |
-          pyinstaller --onefile --windowed --icon=icon.ico --add-data "icon.ico:." pdf/pdf_merger.py --name PDFToolbox
+          pyinstaller --onefile --windowed --icon=icon.ico --add-data "icon.ico:." pdf/pdf_merger.py --name PDFToolbox --clean
       - name: Create DMG
         run: |
           mkdir -p dist/dmg
-          mv dist/PDFToolbox.app dist/dmg/
+          mv "dist/PDFToolbox.app" dist/dmg/
           hdiutil create -volname "PDF工具箱" -srcfolder dist/dmg -ov -format UDZO dist/PDFToolbox.dmg
       - name: Upload artifact
         uses: actions/upload-artifact@v4
