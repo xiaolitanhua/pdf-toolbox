@@ -24,7 +24,7 @@ jobs:
         pip install pyinstaller
         pip install PyQt5
         pip install PyPDF2
-        pip install Pillow
+        pip install img2pdf
     
     - name: Build with PyInstaller
       run: |
