@@ -35,3 +35,34 @@ jobs:
       with:
         name: PDFToolbox-Windows
         path: dist/PDFToolbox.exe
+
+  build-macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.9'
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pyinstaller
+          pip install PyQt5
+          pip install PyPDF2
+          pip install img2pdf
+      - name: Build with PyInstaller
+        run: |
+          pyinstaller --onefile --windowed --icon=icon.ico --add-data "icon.ico:." pdf/pdf_merger.py --name PDFToolbox
+      - name: Create DMG
+        run: |
+          mkdir -p dist/dmg
+          mv dist/PDFToolbox.app dist/dmg/
+          hdiutil create -volname "PDF工具箱" -srcfolder dist/dmg -ov -format UDZO dist/PDFToolbox.dmg
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: PDFToolbox-macOS
+          path: |
+            dist/PDFToolbox.app
+            dist/PDFToolbox.dmg
